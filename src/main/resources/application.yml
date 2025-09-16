@@ -1,9 +1,9 @@
 server:
-  port: 8086
+  port: 8087
 
 spring:
   application:
-    name: payment-service
+    name: pricing-service
   datasource:
     url: jdbc:h2:mem:testdb
     driverClassName: org.h2.Driver

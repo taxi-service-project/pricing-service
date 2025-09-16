@@ -1,6 +1,8 @@
 package com.example.pricing_service.service;
 
+import com.example.pricing_service.dto.CreatePolicyRequest;
 import com.example.pricing_service.dto.FareResponse;
+import com.example.pricing_service.dto.PolicyResponse;
 import com.example.pricing_service.entity.FarePolicy;
 import com.example.pricing_service.repository.FarePolicyRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -12,7 +14,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
+import static org.mockito.Mockito.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -63,5 +67,44 @@ class PricingServiceTest {
         // 기본요금(4600) + 거리요금(1000m * 0.86) + 시간요금(600s * 0.3) = 4600 + 860 + 180 = 5640
         // 할증 적용: 5640 * 1.2 = 6768
         assertThat(response.fare()).isEqualTo(6768);
+    }
+
+    @Test
+    @DisplayName("요금 정책 생성 성공")
+    void createFarePolicy_Success() {
+        // given
+        CreatePolicyRequest request = new CreatePolicyRequest(
+                "서울 주간 요금제", 3800, 2000,
+                new BigDecimal("0.72"), new BigDecimal("0.25"),
+                null, null, null, true
+        );
+
+        // JpaRepository의 save 메서드는 저장된 엔티티를 반환하므로, 이를 Mocking
+        when(farePolicyRepository.save(any(FarePolicy.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        PolicyResponse response = pricingService.createFarePolicy(request);
+
+        // then
+        assertThat(response.policyName()).isEqualTo("서울 주간 요금제");
+        assertThat(response.baseFare()).isEqualTo(3800);
+        verify(farePolicyRepository).save(any(FarePolicy.class));
+    }
+
+    @Test
+    @DisplayName("모든 요금 정책 조회 성공")
+    void getAllFarePolicies_Success() {
+        // given
+        FarePolicy policy1 = FarePolicy.builder().policyName("주간").build();
+        FarePolicy policy2 = FarePolicy.builder().policyName("야간").build();
+        when(farePolicyRepository.findAll()).thenReturn(List.of(policy1, policy2));
+
+        // when
+        List<PolicyResponse> responses = pricingService.getAllFarePolicies();
+
+        // then
+        assertThat(responses).hasSize(2);
+        assertThat(responses).extracting(PolicyResponse::policyName).contains("주간", "야간");
     }
 }

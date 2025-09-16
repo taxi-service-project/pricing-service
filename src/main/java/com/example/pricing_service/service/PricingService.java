@@ -1,6 +1,8 @@
 package com.example.pricing_service.service;
 
+import com.example.pricing_service.dto.CreatePolicyRequest;
 import com.example.pricing_service.dto.FareResponse;
+import com.example.pricing_service.dto.PolicyResponse;
 import com.example.pricing_service.entity.FarePolicy;
 import com.example.pricing_service.exception.NoActiveFarePolicyException;
 import com.example.pricing_service.repository.FarePolicyRepository;
@@ -12,6 +14,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +51,35 @@ public class PricingService {
         log.info("최종 요금 계산 완료: {}원", calculatedFare);
 
         return new FareResponse(calculatedFare);
+    }
+
+    @Transactional
+    public PolicyResponse createFarePolicy(CreatePolicyRequest request) {
+        if (request.isActive()) {
+            farePolicyRepository.deactivateAllPolicies();
+        }
+
+        FarePolicy newPolicy = FarePolicy.builder()
+                                         .policyName(request.policyName())
+                                         .baseFare(request.baseFare())
+                                         .baseDistance(request.baseDistance())
+                                         .ratePerMeter(request.ratePerMeter())
+                                         .ratePerSecond(request.ratePerSecond())
+                                         .surchargeStartTime(request.surchargeStartTime())
+                                         .surchargeEndTime(request.surchargeEndTime())
+                                         .surchargeRate(request.surchargeRate())
+                                         .isActive(request.isActive())
+                                         .build();
+
+        FarePolicy savedPolicy = farePolicyRepository.save(newPolicy);
+        log.info("새로운 요금 정책 생성 완료. Policy ID: {}", savedPolicy.getId());
+        return PolicyResponse.fromEntity(savedPolicy);
+    }
+
+    public List<PolicyResponse> getAllFarePolicies() {
+        return farePolicyRepository.findAll().stream()
+                                   .map(PolicyResponse::fromEntity)
+                                   .collect(Collectors.toList());
     }
 
     private boolean isSurchargeApplicable(FarePolicy policy, LocalTime endTime) {
